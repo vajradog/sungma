@@ -1,0 +1,50 @@
+/**
+ * Sungma — Download and Web Share API
+ */
+
+Sungma.Share = (() => {
+  /**
+   * Download a blob as a file.
+   */
+  function download(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Revoke after a short delay to ensure download starts
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  /**
+   * Share a blob using the Web Share API (mobile native share sheet).
+   * Falls back to download if sharing is not supported.
+   */
+  async function share(blob, filename, title) {
+    if (navigator.share && navigator.canShare) {
+      const file = new File([blob], filename, { type: blob.type });
+      const shareData = { title: title || 'Sungma', files: [file] };
+
+      if (navigator.canShare(shareData)) {
+        try {
+          await navigator.share(shareData);
+          return true;
+        } catch (err) {
+          if (err.name !== 'AbortError') {
+            console.warn('Share failed, falling back to download:', err);
+          } else {
+            return false; // User cancelled
+          }
+        }
+      }
+    }
+
+    // Fallback: download
+    download(blob, filename);
+    return true;
+  }
+
+  return { download, share };
+})();
