@@ -1,10 +1,37 @@
 /**
  * Sungma — Download and Web Share API
+ * Save prefers Web Share on mobile (saves to camera roll), download as fallback.
  */
 
 Sungma.Share = (() => {
   /**
-   * Download a blob as a file.
+   * Save a blob — uses Web Share API on mobile (lets user save to camera roll),
+   * falls back to download on desktop.
+   */
+  async function save(blob, filename) {
+    // On mobile, Web Share with files gives the "Save to Photos" option
+    if (navigator.share && navigator.canShare) {
+      const file = new File([blob], filename, { type: blob.type });
+      const shareData = { files: [file] };
+
+      if (navigator.canShare(shareData)) {
+        try {
+          await navigator.share(shareData);
+          return true;
+        } catch (err) {
+          if (err.name === 'AbortError') return false; // User cancelled
+          // Fall through to download
+        }
+      }
+    }
+
+    // Fallback: browser download
+    download(blob, filename);
+    return true;
+  }
+
+  /**
+   * Download a blob as a file (goes to downloads folder).
    */
   function download(blob, filename) {
     const url = URL.createObjectURL(blob);
@@ -14,7 +41,6 @@ Sungma.Share = (() => {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    // Revoke after a short delay to ensure download starts
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
@@ -35,16 +61,15 @@ Sungma.Share = (() => {
           if (err.name !== 'AbortError') {
             console.warn('Share failed, falling back to download:', err);
           } else {
-            return false; // User cancelled
+            return false;
           }
         }
       }
     }
 
-    // Fallback: download
     download(blob, filename);
     return true;
   }
 
-  return { download, share };
+  return { save, download, share };
 })();

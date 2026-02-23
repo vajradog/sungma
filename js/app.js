@@ -8,6 +8,7 @@ Sungma.App = (() => {
     includeGPS: true,
     includeDateTime: true,
     distortion: 'off',
+    coverStyle: 'medium',
     passphrase: '',
     note: '',
   };
@@ -111,6 +112,15 @@ Sungma.App = (() => {
         saveSettings();
       });
     });
+    // Cover style (pixelation level)
+    document.querySelectorAll('input[name="cover-style"]').forEach((radio) => {
+      radio.addEventListener('change', (e) => {
+        settings.coverStyle = e.target.value;
+        Sungma.Pixelation.setCoverStyle(settings.coverStyle);
+        saveSettings();
+      });
+    });
+
     document.getElementById('setting-passphrase').addEventListener('input', (e) => {
       settings.passphrase = e.target.value;
     });
@@ -148,7 +158,7 @@ Sungma.App = (() => {
       const result = await Sungma.Recorder.stop();
       document.getElementById('btn-record').classList.remove('recording');
       if (result) {
-        const ext = result.mimeType.includes('webm') ? 'webm' : 'webm';
+        const ext = result.mimeType.includes('mp4') ? 'mp4' : 'webm';
         const filename = Sungma.Utils.generateFilename('video', ext);
         showPreview(result.blob, 'video', filename);
       }
@@ -294,9 +304,9 @@ Sungma.App = (() => {
     previewFilename = null;
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!previewBlob || !previewFilename) return;
-    Sungma.Share.download(previewBlob, previewFilename);
+    await Sungma.Share.save(previewBlob, previewFilename);
     hidePreview();
   }
 
@@ -322,6 +332,7 @@ Sungma.App = (() => {
         includeGPS: settings.includeGPS,
         includeDateTime: settings.includeDateTime,
         distortion: settings.distortion,
+        coverStyle: settings.coverStyle,
       }));
     } catch (e) { /* storage might be unavailable */ }
   }
@@ -334,6 +345,7 @@ Sungma.App = (() => {
         settings.includeGPS = parsed.includeGPS ?? true;
         settings.includeDateTime = parsed.includeDateTime ?? true;
         settings.distortion = parsed.distortion ?? 'off';
+        settings.coverStyle = parsed.coverStyle ?? 'medium';
 
         // Sync UI
         document.getElementById('setting-gps').checked = settings.includeGPS;
@@ -341,7 +353,11 @@ Sungma.App = (() => {
         document.querySelectorAll('input[name="distortion"]').forEach(r => {
           r.checked = r.value === settings.distortion;
         });
+        document.querySelectorAll('input[name="cover-style"]').forEach(r => {
+          r.checked = r.value === settings.coverStyle;
+        });
         Sungma.Audio.setLevel(settings.distortion);
+        Sungma.Pixelation.setCoverStyle(settings.coverStyle);
         updateDistortionUI();
       }
     } catch (e) { /* ignore */ }

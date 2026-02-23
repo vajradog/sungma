@@ -2,7 +2,7 @@
  * Sungma — Service Worker for offline support and PWA
  */
 
-const CACHE_NAME = 'sungma-v1';
+const CACHE_NAME = 'sungma-v3';
 
 const ASSETS = [
   './',
@@ -26,9 +26,9 @@ const ASSETS = [
 ];
 
 const CDN_ASSETS = [
-  'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs',
-  'https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface',
-  'https://cdn.jsdelivr.net/npm/piexifjs',
+  'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js',
+  'https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.1.0/dist/blazeface.min.js',
+  'https://cdn.jsdelivr.net/npm/piexifjs@1.0.6/piexif.js',
 ];
 
 // Install: cache all app assets

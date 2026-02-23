@@ -143,6 +143,23 @@
           </label>
         </div>
         <div class="setting-group">
+          <h3>Face Cover Style</h3>
+          <div class="setting-options">
+            <label class="radio-option">
+              <input type="radio" name="cover-style" value="light"> Light
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="cover-style" value="medium" checked> Medium
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="cover-style" value="heavy"> Heavy
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="cover-style" value="blackbox"> Black Box
+            </label>
+          </div>
+        </div>
+        <div class="setting-group">
           <h3>Voice Distortion</h3>
           <div class="setting-options">
             <label class="radio-option">
@@ -207,9 +224,9 @@
   </div>
 
   <!-- Scripts (CDN) -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
-  <script src="https://cdn.jsdelivr.net/npm/piexifjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.1.0/dist/blazeface.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/piexifjs@1.0.6/piexif.js"></script>
 
   <!-- App Scripts -->
   <script src="js/utils.js"></script>

@@ -1,0 +1,14 @@
+# Editor / IDE
+.claude/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log

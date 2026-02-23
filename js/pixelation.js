@@ -1,5 +1,6 @@
 /**
  * Sungma — Canvas rendering with face pixelation overlay
+ * Supports multiple cover styles: pixelate (light/medium/heavy) and blackbox
  */
 
 Sungma.Pixelation = (() => {
@@ -7,10 +8,27 @@ Sungma.Pixelation = (() => {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   let animFrameId = null;
   let running = false;
-  const BLOCK_SIZE = 12; // Pixelation block size in pixels
+
+  // Cover style: 'light' | 'medium' | 'heavy' | 'blackbox'
+  let coverStyle = 'medium';
+
+  // Block sizes per style
+  const BLOCK_SIZES = {
+    light: 8,
+    medium: 14,
+    heavy: 24,
+  };
+
+  function setCoverStyle(style) {
+    coverStyle = style;
+  }
+
+  function getCoverStyle() {
+    return coverStyle;
+  }
 
   /**
-   * Start the render loop: draws video frames to canvas with face pixelation.
+   * Start the render loop.
    */
   function start() {
     if (running) return;
@@ -40,18 +58,21 @@ Sungma.Pixelation = (() => {
       // Draw the raw frame
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Detect faces and pixelate
+      // Detect faces and apply cover
       const faces = await Sungma.Detection.detect(video);
       for (const face of faces) {
-        pixelateRegion(face.x, face.y, face.width, face.height);
+        if (coverStyle === 'blackbox') {
+          blackboxRegion(face.x, face.y, face.width, face.height);
+        } else {
+          pixelateRegion(face.x, face.y, face.width, face.height);
+        }
       }
 
-      // Interview mode: draw PiP overlay (interviewer, no pixelation)
+      // Interview mode PiP overlay
       if (Sungma.Interview && Sungma.Interview.isActive()) {
         Sungma.Interview.drawPiP(ctx, canvas.width, canvas.height);
       }
 
-      // Update face count UI
       updateFaceCount(faces.length);
     }
 
@@ -62,22 +83,21 @@ Sungma.Pixelation = (() => {
    * Pixelate a rectangular region on the canvas.
    */
   function pixelateRegion(rx, ry, rw, rh) {
-    // Clamp to canvas bounds
     const x = Math.max(0, rx);
     const y = Math.max(0, ry);
     const w = Math.min(rw, canvas.width - x);
     const h = Math.min(rh, canvas.height - y);
     if (w <= 0 || h <= 0) return;
 
+    const blockSize = BLOCK_SIZES[coverStyle] || 14;
     const imageData = ctx.getImageData(x, y, w, h);
     const data = imageData.data;
 
-    for (let by = 0; by < h; by += BLOCK_SIZE) {
-      for (let bx = 0; bx < w; bx += BLOCK_SIZE) {
-        // Calculate average color for this block
+    for (let by = 0; by < h; by += blockSize) {
+      for (let bx = 0; bx < w; bx += blockSize) {
         let r = 0, g = 0, b = 0, count = 0;
-        const blockW = Math.min(BLOCK_SIZE, w - bx);
-        const blockH = Math.min(BLOCK_SIZE, h - by);
+        const blockW = Math.min(blockSize, w - bx);
+        const blockH = Math.min(blockSize, h - by);
 
         for (let py = 0; py < blockH; py++) {
           for (let px = 0; px < blockW; px++) {
@@ -93,7 +113,6 @@ Sungma.Pixelation = (() => {
         g = Math.round(g / count);
         b = Math.round(b / count);
 
-        // Fill block with averaged color
         for (let py = 0; py < blockH; py++) {
           for (let px = 0; px < blockW; px++) {
             const idx = ((by + py) * w + (bx + px)) * 4;
@@ -108,10 +127,37 @@ Sungma.Pixelation = (() => {
     ctx.putImageData(imageData, x, y);
   }
 
+  /**
+   * Fill a region with solid black (blackbox mode).
+   */
+  function blackboxRegion(rx, ry, rw, rh) {
+    const x = Math.max(0, rx);
+    const y = Math.max(0, ry);
+    const w = Math.min(rw, canvas.width - x);
+    const h = Math.min(rh, canvas.height - y);
+    if (w <= 0 || h <= 0) return;
+
+    ctx.fillStyle = '#000000';
+    // Rounded rectangle for a cleaner look
+    const radius = Math.min(w, h) * 0.12;
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + w - radius, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+    ctx.lineTo(x + w, y + h - radius);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    ctx.lineTo(x + radius, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+    ctx.fill();
+  }
+
   let lastFaceCountUpdate = 0;
   function updateFaceCount(count) {
     const now = performance.now();
-    if (now - lastFaceCountUpdate < 300) return; // Throttle UI updates
+    if (now - lastFaceCountUpdate < 300) return;
     lastFaceCountUpdate = now;
 
     const el = document.getElementById('face-count');
@@ -123,13 +169,8 @@ Sungma.Pixelation = (() => {
     }
   }
 
-  function getCanvas() {
-    return canvas;
-  }
+  function getCanvas() { return canvas; }
+  function getContext() { return ctx; }
 
-  function getContext() {
-    return ctx;
-  }
-
-  return { start, stop, getCanvas, getContext };
+  return { start, stop, getCanvas, getContext, setCoverStyle, getCoverStyle };
 })();
