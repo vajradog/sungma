@@ -361,34 +361,37 @@ html, body {
   padding-top: 2px;
 }
 
-/* === Distortion Bar === */
+/* === Quick Toggles Row === */
 
-.distortion-bar {
+.quick-toggles {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.625rem 1rem 0.375rem;
+  gap: 8px;
+  padding: 0.5rem 0.75rem 0.25rem;
+  flex-wrap: wrap;
 }
 
 .distortion-toggle {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 7px 16px;
+  gap: 6px;
+  padding: 6px 12px;
   border: 1px solid var(--border);
   border-radius: 24px;
   background: var(--surface);
   color: var(--text-muted);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   letter-spacing: 0.02em;
+  flex-shrink: 0;
 }
 
 .distortion-toggle svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
 }
 
 .distortion-toggle.active {
@@ -400,6 +403,50 @@ html, body {
 
 .distortion-toggle:active {
   transform: scale(0.96);
+}
+
+/* === Cover Style Bar (on-screen pixelation control) === */
+
+.cover-style-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+}
+
+.cover-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.cover-chip svg {
+  flex-shrink: 0;
+}
+
+.cover-chip:active {
+  transform: scale(0.95);
+}
+
+.cover-chip.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.08);
 }
 
 /* === Action Bar === */

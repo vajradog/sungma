@@ -112,11 +112,12 @@ Sungma.App = (() => {
         saveSettings();
       });
     });
-    // Cover style (pixelation level)
-    document.querySelectorAll('input[name="cover-style"]').forEach((radio) => {
-      radio.addEventListener('change', (e) => {
-        settings.coverStyle = e.target.value;
+    // Cover style chips (on-screen pixelation control)
+    document.querySelectorAll('.cover-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        settings.coverStyle = chip.dataset.style;
         Sungma.Pixelation.setCoverStyle(settings.coverStyle);
+        updateCoverStyleUI();
         saveSettings();
       });
     });
@@ -250,6 +251,12 @@ Sungma.App = (() => {
     }
   }
 
+  function updateCoverStyleUI() {
+    document.querySelectorAll('.cover-chip').forEach(chip => {
+      chip.classList.toggle('active', chip.dataset.style === settings.coverStyle);
+    });
+  }
+
   // === Preview ===
 
   function showPreview(blob, type, filename) {
@@ -353,12 +360,10 @@ Sungma.App = (() => {
         document.querySelectorAll('input[name="distortion"]').forEach(r => {
           r.checked = r.value === settings.distortion;
         });
-        document.querySelectorAll('input[name="cover-style"]').forEach(r => {
-          r.checked = r.value === settings.coverStyle;
-        });
         Sungma.Audio.setLevel(settings.distortion);
         Sungma.Pixelation.setCoverStyle(settings.coverStyle);
         updateDistortionUI();
+        updateCoverStyleUI();
       }
     } catch (e) { /* ignore */ }
   }

@@ -74,12 +74,21 @@
 
     <!-- Controls -->
     <div class="controls-area">
-      <!-- Voice Distortion Toggle -->
-      <div class="distortion-bar">
+      <!-- Quick Toggles Row -->
+      <div class="quick-toggles">
         <button id="btn-distortion" class="distortion-toggle" aria-label="Toggle voice distortion">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
           <span id="distortion-label">Distort: OFF</span>
         </button>
+        <div class="cover-style-bar" id="cover-style-bar">
+          <button class="cover-chip" data-style="light">Light</button>
+          <button class="cover-chip active" data-style="medium">Medium</button>
+          <button class="cover-chip" data-style="heavy">Heavy</button>
+          <button class="cover-chip" data-style="blackbox">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="20" height="20" rx="4"/></svg>
+            Block
+          </button>
+        </div>
       </div>
 
       <!-- Action Buttons -->
@@ -141,23 +150,6 @@
             <input type="checkbox" id="setting-datetime" checked>
             <span class="toggle-slider"></span>
           </label>
-        </div>
-        <div class="setting-group">
-          <h3>Face Cover Style</h3>
-          <div class="setting-options">
-            <label class="radio-option">
-              <input type="radio" name="cover-style" value="light"> Light
-            </label>
-            <label class="radio-option">
-              <input type="radio" name="cover-style" value="medium" checked> Medium
-            </label>
-            <label class="radio-option">
-              <input type="radio" name="cover-style" value="heavy"> Heavy
-            </label>
-            <label class="radio-option">
-              <input type="radio" name="cover-style" value="blackbox"> Black Box
-            </label>
-          </div>
         </div>
         <div class="setting-group">
           <h3>Voice Distortion</h3>
