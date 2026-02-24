@@ -1,13 +1,21 @@
 /**
  * Sungma — Canvas rendering with face pixelation overlay
  * Supports multiple cover styles: pixelate (light/medium/heavy) and blackbox
+ *
+ * CRITICAL PRIVACY FIX: Uses double-buffering to prevent raw face frames from
+ * ever appearing on screen. All compositing happens on an offscreen canvas;
+ * only the fully-protected frame is copied to the visible canvas.
  */
 
 Sungma.Pixelation = (() => {
   const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const ctx = canvas.getContext('2d');
   let animFrameId = null;
   let running = false;
+
+  // Offscreen (back-buffer) canvas — raw video + pixelation drawn here first
+  let offCanvas = null;
+  let offCtx = null;
 
   // Cover style: 'light' | 'medium' | 'heavy' | 'blackbox'
   let coverStyle = 'medium';
@@ -18,6 +26,17 @@ Sungma.Pixelation = (() => {
     medium: 14,
     heavy: 24,
   };
+
+  function ensureOffscreen(w, h) {
+    if (!offCanvas) {
+      offCanvas = document.createElement('canvas');
+      offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    if (offCanvas.width !== w || offCanvas.height !== h) {
+      offCanvas.width = w;
+      offCanvas.height = h;
+    }
+  }
 
   function setCoverStyle(style) {
     coverStyle = style;
@@ -49,29 +68,36 @@ Sungma.Pixelation = (() => {
 
     const video = Sungma.Camera.getVideo();
     if (video && video.readyState >= 2) {
-      // Match canvas to video dimensions
-      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+
+      // Match visible canvas to video dimensions
+      if (canvas.width !== vw || canvas.height !== vh) {
+        canvas.width = vw;
+        canvas.height = vh;
       }
+      ensureOffscreen(vw, vh);
 
-      // Draw the raw frame
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      // ---- Draw everything to OFFSCREEN canvas first ----
+      offCtx.drawImage(video, 0, 0, vw, vh);
 
-      // Detect faces and apply cover
+      // Detect faces (may await, but raw frame is only on the offscreen buffer)
       const faces = await Sungma.Detection.detect(video);
       for (const face of faces) {
         if (coverStyle === 'blackbox') {
-          blackboxRegion(face.x, face.y, face.width, face.height);
+          blackboxRegion(offCtx, offCanvas, face.x, face.y, face.width, face.height);
         } else {
-          pixelateRegion(face.x, face.y, face.width, face.height);
+          pixelateRegion(offCtx, offCanvas, face.x, face.y, face.width, face.height);
         }
       }
 
       // Interview mode PiP overlay
       if (Sungma.Interview && Sungma.Interview.isActive()) {
-        Sungma.Interview.drawPiP(ctx, canvas.width, canvas.height);
+        Sungma.Interview.drawPiP(offCtx, vw, vh);
       }
+
+      // ---- Atomically copy the fully-protected frame to the visible canvas ----
+      ctx.drawImage(offCanvas, 0, 0);
 
       updateFaceCount(faces.length);
     }
@@ -80,17 +106,17 @@ Sungma.Pixelation = (() => {
   }
 
   /**
-   * Pixelate a rectangular region on the canvas.
+   * Pixelate a rectangular region on the given context/canvas.
    */
-  function pixelateRegion(rx, ry, rw, rh) {
+  function pixelateRegion(drawCtx, drawCanvas, rx, ry, rw, rh) {
     const x = Math.max(0, rx);
     const y = Math.max(0, ry);
-    const w = Math.min(rw, canvas.width - x);
-    const h = Math.min(rh, canvas.height - y);
+    const w = Math.min(rw, drawCanvas.width - x);
+    const h = Math.min(rh, drawCanvas.height - y);
     if (w <= 0 || h <= 0) return;
 
     const blockSize = BLOCK_SIZES[coverStyle] || 14;
-    const imageData = ctx.getImageData(x, y, w, h);
+    const imageData = drawCtx.getImageData(x, y, w, h);
     const data = imageData.data;
 
     for (let by = 0; by < h; by += blockSize) {
@@ -124,34 +150,34 @@ Sungma.Pixelation = (() => {
       }
     }
 
-    ctx.putImageData(imageData, x, y);
+    drawCtx.putImageData(imageData, x, y);
   }
 
   /**
    * Fill a region with solid black (blackbox mode).
    */
-  function blackboxRegion(rx, ry, rw, rh) {
+  function blackboxRegion(drawCtx, drawCanvas, rx, ry, rw, rh) {
     const x = Math.max(0, rx);
     const y = Math.max(0, ry);
-    const w = Math.min(rw, canvas.width - x);
-    const h = Math.min(rh, canvas.height - y);
+    const w = Math.min(rw, drawCanvas.width - x);
+    const h = Math.min(rh, drawCanvas.height - y);
     if (w <= 0 || h <= 0) return;
 
-    ctx.fillStyle = '#000000';
+    drawCtx.fillStyle = '#000000';
     // Rounded rectangle for a cleaner look
     const radius = Math.min(w, h) * 0.12;
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + w - radius, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
-    ctx.lineTo(x + w, y + h - radius);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-    ctx.lineTo(x + radius, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.closePath();
-    ctx.fill();
+    drawCtx.beginPath();
+    drawCtx.moveTo(x + radius, y);
+    drawCtx.lineTo(x + w - radius, y);
+    drawCtx.quadraticCurveTo(x + w, y, x + w, y + radius);
+    drawCtx.lineTo(x + w, y + h - radius);
+    drawCtx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    drawCtx.lineTo(x + radius, y + h);
+    drawCtx.quadraticCurveTo(x, y + h, x, y + h - radius);
+    drawCtx.lineTo(x, y + radius);
+    drawCtx.quadraticCurveTo(x, y, x + radius, y);
+    drawCtx.closePath();
+    drawCtx.fill();
   }
 
   let lastFaceCountUpdate = 0;
