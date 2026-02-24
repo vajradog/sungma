@@ -1,10 +1,11 @@
 /**
- * Sungma — Face detection with TensorFlow.js BlazeFace
+ * Sungma — Face detection with TensorFlow.js face-detection API
+ * Uses MediaPipe BlazeFace (short-range) model via @tensorflow-models/face-detection
  * Performance-optimized: tensor cleanup, adaptive frame skip, scaled input
  */
 
 Sungma.Detection = (() => {
-  let model = null;
+  let detector = null;
   let lastFaces = [];
   let frameCount = 0;
   let detectInterval = 4; // Adaptive — starts at 4, increases if slow
@@ -13,7 +14,7 @@ Sungma.Detection = (() => {
   // Offscreen canvas for scaled detection input
   let detectCanvas = null;
   let detectCtx = null;
-  const DETECT_SIZE = 256; // Downscale to 256px for detection (much faster)
+  const DETECT_SIZE = 256; // Downscale to 256px for faster preprocessing
 
   async function loadModel(onProgress) {
     try {
@@ -21,9 +22,12 @@ Sungma.Detection = (() => {
       await tf.ready();
       // Aggressively clean up GPU memory
       tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0);
-      if (onProgress) onProgress(0.5);
+      if (onProgress) onProgress(0.3);
 
-      model = await blazeface.load();
+      detector = await faceDetection.createDetector(
+        faceDetection.SupportedModels.MediaPipeFaceDetector,
+        { runtime: 'tfjs', modelType: 'short', maxFaces: 20 }
+      );
       if (onProgress) onProgress(1.0);
 
       // Create offscreen detection canvas
@@ -38,7 +42,10 @@ Sungma.Detection = (() => {
       try {
         await tf.setBackend('cpu');
         await tf.ready();
-        model = await blazeface.load();
+        detector = await faceDetection.createDetector(
+          faceDetection.SupportedModels.MediaPipeFaceDetector,
+          { runtime: 'tfjs', modelType: 'short', maxFaces: 20 }
+        );
         if (onProgress) onProgress(1.0);
         detectCanvas = document.createElement('canvas');
         detectCanvas.width = DETECT_SIZE;
@@ -54,10 +61,11 @@ Sungma.Detection = (() => {
 
   /**
    * Detect faces in the given video element.
-   * Optimized: scaled detection input, tf.tidy for memory, adaptive frame skip.
+   * Optimized: scaled detection input, adaptive frame skip.
+   * Uses the face-detection API (MediaPipe BlazeFace short-range).
    */
   async function detect(videoEl) {
-    if (!model || !videoEl || videoEl.readyState < 2) return lastFaces;
+    if (!detector || !videoEl || videoEl.readyState < 2) return lastFaces;
 
     frameCount++;
     if (frameCount % detectInterval !== 0) return lastFaces;
@@ -71,30 +79,30 @@ Sungma.Detection = (() => {
       const scale = DETECT_SIZE / Math.max(vw, vh);
       const sw = Math.round(vw * scale);
       const sh = Math.round(vh * scale);
-      detectCtx.clearRect(0, 0, DETECT_SIZE, DETECT_SIZE);
+      detectCanvas.width = sw;
+      detectCanvas.height = sh;
+      detectCtx.clearRect(0, 0, sw, sh);
       detectCtx.drawImage(videoEl, 0, 0, sw, sh);
 
-      // Run detection — estimateFaces is async so we can't use tf.tidy.
-      // Instead, manually dispose any intermediate tensors.
-      const predictions = await model.estimateFaces(detectCanvas, false);
+      // Run detection on scaled-down canvas
+      const predictions = await detector.estimateFaces(detectCanvas);
 
       // Map predictions back to original video coordinates
       const invScale = 1 / scale;
-      lastFaces = predictions.map(p => {
-        const [x1, y1] = p.topLeft;
-        const [x2, y2] = p.bottomRight;
-        const rx1 = x1 * invScale;
-        const ry1 = y1 * invScale;
-        const rx2 = x2 * invScale;
-        const ry2 = y2 * invScale;
-        const padX = (rx2 - rx1) * 0.15;
-        const padY = (ry2 - ry1) * 0.2;
+      lastFaces = predictions.map(f => {
+        const box = f.box;
+        const rx = box.xMin * invScale;
+        const ry = box.yMin * invScale;
+        const rw = box.width * invScale;
+        const rh = box.height * invScale;
+        const padX = rw * 0.15;
+        const padY = rh * 0.2;
         return {
-          x: Math.max(0, Math.floor(rx1 - padX)),
-          y: Math.max(0, Math.floor(ry1 - padY)),
-          width: Math.ceil((rx2 - rx1) + padX * 2),
-          height: Math.ceil((ry2 - ry1) + padY * 2),
-          probability: p.probability[0],
+          x: Math.max(0, Math.floor(rx - padX)),
+          y: Math.max(0, Math.floor(ry - padY)),
+          width: Math.ceil(rw + padX * 2),
+          height: Math.ceil(rh + padY * 2),
+          probability: 1.0,
         };
       });
 
@@ -124,7 +132,7 @@ Sungma.Detection = (() => {
   }
 
   function isLoaded() {
-    return model !== null;
+    return detector !== null;
   }
 
   function getDetectTime() {
